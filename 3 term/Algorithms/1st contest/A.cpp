@@ -8,43 +8,27 @@
 #include <vector>
 using namespace std;
 
-vector<int> prefixFunction(const string& str) {
-    /*
-    vector<int> pf(str.size() + 1, 0);
-    pf[0] = -1;  // let prefix function of empty string be -1
-    for (int i = 1; i < str.size() + 1; ++i) {
-        for (int k = pf[i - 1]; k >= 0; k = pf[k])
-            if (str[k] == str[i - 1]) {
-                pf[i] = k + 1;
-                break;
-            }
-    }
-    return pf;
-    */
-
-    vector<int> pf(str.size(), 0);
+vector<size_t> prefixFunction(const string& str) {
+    vector<size_t> pf(str.size(), 0);
     for (size_t i = 1; i < str.size(); ++i) {
-        int j = pf[i-1];
-        while (j > 0 && str[i] != str[j])
-            j = pf[j-1];
-        if (str[i] == str[j]) ++j;
-        pf[i] = j;
+        auto lastPref = pf[i - 1];
+        while (lastPref > 0 && str[i] != str[lastPref])
+            lastPref = pf[lastPref - 1];
+        pf[i] = lastPref + (str[i] == str[lastPref] ? 1 : 0);
     }
     return pf;
 }
 
-vector<int> KMP(const string& pattern) {
-    auto p = prefixFunction(pattern);
-
-    int last = p.back();
-    char newSymbol = char(getchar());
-    vector<int> result;
-    for (int i = 0; newSymbol != EOF; ++i) {
-        int j = last;
-        while (j > 0 && newSymbol != pattern[j])
-            j = p[j-1];
-        if (newSymbol == pattern[j]) ++j;
-        last = j;
+vector<size_t> KMP(const string& pattern) {
+    auto patternPF = prefixFunction(pattern);
+    auto last = patternPF.back();
+    auto newSymbol = (char)getchar();
+    vector<size_t> result;
+    for (size_t i = 0; newSymbol != EOF; ++i) {
+        auto lastPref = last;
+        while (lastPref > 0 && newSymbol != pattern[lastPref])
+            lastPref = patternPF[lastPref - 1];
+        last = lastPref + (newSymbol == pattern[lastPref] ? 1 : 0);
         if (last == pattern.size()) result.push_back(i - last);
         newSymbol = char(getchar());
     }

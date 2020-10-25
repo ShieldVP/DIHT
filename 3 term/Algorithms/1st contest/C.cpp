@@ -17,8 +17,8 @@ class Trie {
 public:
     Trie(const vector<pair<string, int>>& base) {
         root = new Node;
-        for (auto& str : base)
-            add(str.first, str.second);
+        for (auto& part : base)
+            add(part.first, part.second);
     }
 
     ~Trie() {

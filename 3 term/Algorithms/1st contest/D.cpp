@@ -13,7 +13,7 @@ public:
     explicit SuffixArray(const std::string& str_);
 
     size_t size() const;
-    std::vector<size_t> get() const;
+    const std::vector<size_t>& get() const;
     std::string getString() const;
     std::vector<size_t> getLCP();
     std::string getSubstr(size_t position, size_t length) const;
@@ -21,21 +21,27 @@ public:
     size_t differentSubstringsNumber();
 
 protected:
-    std::vector<size_t> array, LCP;
+    std::vector<size_t> array;
+    std::vector<size_t> LCP;
     size_t len;
 
 private:
-    std::string str;
+    std::string base;
+    static const unsigned char ALPHABET = 128;  // there will be only ASCII symbols
 
     void construct();
+    void sortChars(std::vector<size_t>& counter, std::vector<size_t>& classify, size_t& classesAmount);
     size_t getLCPFairly(size_t firstSuffix, size_t secondSuffix, size_t knownPrefix = 0);
 };
 
-SuffixArray::SuffixArray(const std::string &str_) {
-    str = str_ + char(0);
+SuffixArray::SuffixArray(const std::string &str) :
+base(str + char(0)),
+len(base.size())
+{
+    array.resize(len, 0);
     construct();
     array.erase(array.begin());
-    str.pop_back();
+    base.pop_back();
     --len;
 }
 
@@ -43,12 +49,12 @@ size_t SuffixArray::size() const {
     return len;
 }
 
-std::vector<size_t> SuffixArray::get() const {
+const std::vector<size_t>& SuffixArray::get() const {
     return array;
 }
 
 std::string SuffixArray::getString() const {
-    return str;
+    return base;
 }
 
 std::vector<size_t> SuffixArray::getLCP() {
@@ -69,7 +75,7 @@ std::vector<size_t> SuffixArray::getLCP() {
 }
 
 std::string SuffixArray::getSubstr(size_t position, size_t length) const {
-    return str.substr(position, length);
+    return base.substr(position, length);
 }
 
 size_t SuffixArray::differentSubstringsNumber() {
@@ -80,26 +86,14 @@ size_t SuffixArray::differentSubstringsNumber() {
 }
 
 void SuffixArray::construct() {
-    len = str.size();
-    unsigned char alphabet = 128;  // there will be only ASCII symbols
-    std::vector<size_t> counter(alphabet, 0), classify(len, 0);
-    array.resize(len, 0);
+    std::vector<size_t> counter(ALPHABET, 0), classify(len, 0);
+    size_t classesAmount = 1;
     // counter:  for each symbol counts its' occurrences in the text
     // array:    array of suffixes in lexicographic order
     // classify: relation from suffixes to the classes of equality
 
     // first iteration for substrings length of 1
-    for (auto symbol : str)
-        ++counter[symbol];
-    for (size_t i = 1; i < alphabet; ++i)
-        counter[i] += counter[i - 1];  // to reserve place in array for previous elements
-    for (size_t i = 1; i < len; ++i)
-        array[--counter[str[i]]] = i;  // filling array in classes backwards
-    size_t classesAmount = 1;
-    for (size_t i = 1; i < len; ++i) {
-        if (str[array[i]] != str[array[i - 1]]) ++classesAmount;
-        classify[array[i]] = classesAmount - 1;
-    }
+    sortChars(counter, classify, classesAmount);
 
     std::vector<size_t> newArray(len), newClassify(len);
     for (size_t seg = 1; seg < len; seg <<= 1u) {
@@ -124,17 +118,30 @@ void SuffixArray::construct() {
     }
 }
 
+void SuffixArray::sortChars(std::vector<size_t>& counter, std::vector<size_t>& classify, size_t& classesAmount)  {
+    for (auto symbol : base)
+        ++counter[symbol];
+    for (size_t i = 1; i < ALPHABET; ++i)
+        counter[i] += counter[i - 1];  // to reserve place in array for previous elements
+    for (size_t i = 1; i < len; ++i)
+        array[--counter[base[i]]] = i;  // filling array in classes backwards
+    for (size_t i = 1; i < len; ++i) {
+        if (base[array[i]] != base[array[i - 1]]) ++classesAmount;
+        classify[array[i]] = classesAmount - 1;
+    }
+}
+
 size_t SuffixArray::getLCPFairly(size_t firstSuffix, size_t secondSuffix, size_t knownPrefix) {
     while (firstSuffix + knownPrefix < len && secondSuffix + knownPrefix < len
-           && str[firstSuffix + knownPrefix] == str[secondSuffix + knownPrefix])
+           && base[firstSuffix + knownPrefix] == base[secondSuffix + knownPrefix])
         ++knownPrefix;
     return knownPrefix;
 }
 
 int main() {
-    std::string str;
-    std::cin >> str;
-    SuffixArray arr(str);
+    std::string base;
+    std::cin >> base;
+    SuffixArray arr(base);
     std::cout << arr.differentSubstringsNumber();
     return 0;
 }

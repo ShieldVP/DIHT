@@ -16,11 +16,12 @@
 #include <algorithm>
 #include <tuple>
 #include <optional>
+#include <functional>
 
 struct Point {
     int x = 0, y = 0;
 
-    Point() = default();
+    Point() = default;
 };
 
 std::istream& operator>>(std::istream& stream, Point& A) {
@@ -35,7 +36,7 @@ struct Intersection {
     firstID(id1),
     secondID(id2)
     {}
-}
+};
 
 std::ostream& operator <<(std::ostream& stream, const Intersection& enter) {
     auto minID = std::min(enter.firstID, enter.secondID);
@@ -149,7 +150,7 @@ std::optional<Intersection> findIntersection(const std::vector<LineSegment>& giv
         events.emplace_back(givenSet[i].end.x, false, i);
     }
     sort(events.begin(), events.end(), [](const Event& A, const Event& B) {
-        return std::tie(A.x, !A.isLeft) < std::tie(B.x, !B.isLeft);
+        return std::tie(A.x, B.isLeft) < std::tie(B.x, A.isLeft);
     });
 
     SweepingLine line(givenSet.size());
@@ -185,7 +186,7 @@ int main() {
         set[i].id = i;
     }
     if (auto result = findIntersection(set))
-        std::cout << "YES" << std::endl << result;
+        std::cout << "YES" << std::endl << result.value();
     else std::cout << "NO";
     return 0;
 }

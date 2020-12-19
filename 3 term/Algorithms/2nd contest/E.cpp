@@ -14,25 +14,48 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <tuple>
+#include <optional>
 
 struct Point {
-    int x, y;
+    int x = 0, y = 0;
 
-    Point() {
-        std::cin >> x >> y;
-    }
+    Point() = default();
 };
+
+std::istream& operator>>(std::istream& stream, Point& A) {
+    stream >> A.x >> A.y;
+    return stream;
+}
+
+struct Intersection {
+    size_t firstID, secondID;
+
+    Intersection(size_t id1, size_t id2) :
+    firstID(id1),
+    secondID(id2)
+    {}
+}
+
+std::ostream& operator <<(std::ostream& stream, const Intersection& enter) {
+    auto minID = std::min(enter.firstID, enter.secondID);
+    auto maxID = std::max(enter.firstID, enter.secondID);
+    stream << minID + 1 << ' ' << maxID + 1;
+    return stream;
+}
 
 struct LineSegment {
     Point start, end;
     size_t id;
 
-    LineSegment(const Point& s, const Point& e) : start(s), end(e) {}
+    LineSegment(const Point& start, const Point& end) : 
+    start(start), 
+    end(end) 
+    {}
 
     double computeY(int x) const {
         if (x == start.x) return start.y;
-        if (x == end.x) return end.y;
-        if (start.x == end.x) return start.y;
+        if (start.x == end.x || x == end.x) return end.y;
         return start.y + (end.y - start.y) * (x - start.x) / (double)(end.x - start.x);
     }
 };
@@ -42,12 +65,16 @@ struct Event {
     int x;
     bool isLeft;
 
-    Event (int x, int isLeft, size_t id) : x(x), isLeft(isLeft), id(id) {}
+    Event (int x, int isLeft, size_t id) : 
+    x(x), 
+    isLeft(isLeft), 
+    id(id) 
+    {}
 };
 
 bool isBasicallyIntersect(const LineSegment& A, const LineSegment& B) {
-    auto up_A = std::max(A.start.y, A.end.y), up_B = std::max(B.start.y, B.end.y),
-            down_A = std::min(A.start.y, A.end.y), down_B = std::min(B.start.y, B.end.y);
+    auto up_A   = std::max(A.start.y, A.end.y), up_B   = std::max(B.start.y, B.end.y),
+         down_A = std::min(A.start.y, A.end.y), down_B = std::min(B.start.y, B.end.y);
     return std::max(A.start.x, B.start.x) <= std::min(A.end.x, B.end.x) &&
            std::max(down_A, down_B) <= std::min(up_A, up_B);
 }
@@ -63,7 +90,7 @@ bool isIntersect(const LineSegment& A, const LineSegment& B) {
 }
 
 bool operator==(const Point& A, const Point& B) {
-    return A.x == B.x && A.y == B.y;
+    return std::tie(A.x, A.y) == std::tie(B.x, B.y);
 }
 
 bool operator<(const LineSegment& A, const LineSegment& B) {
@@ -115,14 +142,14 @@ private:
     std::vector<std::set<LineSegment>::iterator> pointers;
 };
 
-std::pair<int, int> findIntersection(const std::vector<LineSegment>& givenSet) {
+std::optional<Intersection> findIntersection(const std::vector<LineSegment>& givenSet) {
     std::vector<Event> events;
     for (size_t i = 0; i < givenSet.size(); ++i) {
         events.emplace_back(givenSet[i].start.x, true, i);
         events.emplace_back(givenSet[i].end.x, false, i);
     }
     sort(events.begin(), events.end(), [](const Event& A, const Event& B) {
-        return A.x == B.x ? A.isLeft > B.isLeft : A.x < B.x;
+        return std::tie(A.x, !A.isLeft) < std::tie(B.x, !B.isLeft);
     });
 
     SweepingLine line(givenSet.size());
@@ -130,20 +157,20 @@ std::pair<int, int> findIntersection(const std::vector<LineSegment>& givenSet) {
         if (event.isLeft) {
             auto next = line.findNext(givenSet[event.id]), prev = line.prev(next);
             if (line.isReal(next) && isIntersect(*next, givenSet[event.id]))
-                return std::make_pair(next->id, event.id);
+                return Intersection(next->id, event.id);
             if (line.isReal(prev) && isIntersect(*prev, givenSet[event.id]))
-                return std::make_pair(prev->id, event.id);
+                return Intersection(prev->id, event.id);
             line.insert(givenSet[event.id], event.id);
         }
         else {
             auto next = line.next(event.id), prev = line.prev(event.id);
             if (line.isReal(next) && line.isReal(prev) && isIntersect(*next, *prev))
-                return std::make_pair(prev->id, next->id);
+                return Intersection(prev->id, next->id);
             line.erase(event.id);
         }
     }
 
-    return std::make_pair(-1, -1);
+    return std::nullopt;
 }
 
 int main() {
@@ -152,12 +179,13 @@ int main() {
     std::vector<LineSegment> set;
     for (size_t i = 0; i < N; ++i) {
         Point A, B;
+        std::cin >> A >> B;
         if (A.x < B.x) set.emplace_back(A, B);
         else set.emplace_back(B, A);
         set[i].id = i;
     }
-    auto result = findIntersection(set);
-    if (result.first < 0) std::cout << "NO";
-    else std::cout << "YES" << std::endl << std::min(result.first, result.second) + 1 << ' ' << std::max(result.first, result.second) + 1;
+    if (auto result = findIntersection(set))
+        std::cout << "YES" << std::endl << result;
+    else std::cout << "NO";
     return 0;
 }

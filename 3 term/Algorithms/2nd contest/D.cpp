@@ -10,13 +10,20 @@
 
 #include <iostream>
 #include <vector>
+#include <tuple>
 
 struct Point {
     long double x, y;
 	
-	Point() : x(0), y(0) {};
+	Point() : 
+	x(0), 
+	y(0) 
+	{};
 	
-	Point(long double _x, long double _y) : x(_x), y(_y) {};
+	Point(long double x, long double y) : 
+	x(x), 
+	y(y) 
+	{};
 	
 	Point& operator+=(const Point& other) {
 		x += other.x;
@@ -45,7 +52,12 @@ Point operator-(const Point& A, const Point& B) {
 	return C -= B;
 }
 
-double crossProductZ(const Point& A, const Point& B) {
+std::istream& operator>>(std::istream& stream, Point& A) {
+    stream >> A.x >> A.y;
+    return stream;
+}
+
+static double crossProductZ(const Point& A, const Point& B) {
 	return A.x * B.y - A.y * B.x;
 }
 
@@ -69,7 +81,7 @@ public:
 		return rightBottomPoint;
 	}
 
-	Point radiusVector(size_t i) const {
+	Point& radiusVector(size_t i) const {
 		return Vertices[i % Vertices.size()];
 	}
 	
@@ -102,20 +114,20 @@ private:
     void read(size_t vertices) {
         Vertices.resize(vertices);
         for (size_t i = 0; i < vertices; ++i) {
-            std::cin >> Vertices[i].x >> Vertices[i].y;
-			if (Vertices[i].y > Vertices[leftTopPoint].y) leftTopPoint = i;
-			else if (Vertices[i].y == Vertices[leftTopPoint].y && Vertices[i].x < Vertices[leftTopPoint].x) leftTopPoint = i;
-            if (Vertices[i].y < Vertices[rightBottomPoint].y) rightBottomPoint = i;
-			else if (Vertices[i].y == Vertices[rightBottomPoint].y && Vertices[i].x > Vertices[rightBottomPoint].x) rightBottomPoint = i;
+            std::cin >> Vertices[i];
+			if (std::tie(Vertices[i].y, -Vertices[i].x) > std::tie(Vertices[leftTopPoint].y, -Vertices[leftTopPoint].x)) 
+				leftTopPoint = i;
+            if (std::tie(Vertices[i].y, -Vertices[i].x) < std::tie(Vertices[rightBottomPoint].y, -Vertices[rightBottomPoint].x))
+            	rightBottomPoint = i;
 		}
     }
 };
 
 Polygon MinkoskiySum(const Polygon& P, const Polygon& Q) {
 	Polygon result;
-	for (size_t i = P.front(), j = Q.front(); i - P.front() < P.vertices() || j - Q.front() < Q.vertices();) {
-		result.add(P.radiusVector(i) + Q.radiusVector(j));
-		auto rotation = crossProductZ(P.edgeVector(i), Q.edgeVector(j));
+	for (size_t i = 0, j = 0; i < P.vertices() || j < Q.vertices();) {
+		result.add(P.radiusVector(i + P.front()) + Q.radiusVector(j + Q.front()));
+		auto rotation = crossProductZ(P.edgeVector(i + P.front()), Q.edgeVector(j + Q.front()));
 		if (rotation <= 0) ++i;
 		if (rotation >= 0) ++j;
 	}

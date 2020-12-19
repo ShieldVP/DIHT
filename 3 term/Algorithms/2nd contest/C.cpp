@@ -10,6 +10,7 @@
 */
 
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <stack>
 #include <map>
@@ -200,7 +201,7 @@ private:
 
 int main() {
     size_t N, M;
-    std::cin >> N
+    std::cin >> N;
     std::vector<Point> arr(N);
     for (auto& point : arr)
         std::cin >> point;

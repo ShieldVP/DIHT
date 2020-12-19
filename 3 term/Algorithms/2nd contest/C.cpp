@@ -18,7 +18,6 @@
 #include <algorithm>
 #include <cmath>
 #include <tuple>
-using namespace std;
 
 struct Point {
     long long x = 0, y = 0, z = 0;

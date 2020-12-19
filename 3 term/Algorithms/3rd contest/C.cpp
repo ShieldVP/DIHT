@@ -12,10 +12,9 @@
 #include <iostream>
 #include <vector>
 #include <unordered_set>
+#include <optional>
 
-int main() {
-    short N;
-    scanf("%hd", &N);
+std::optional<std::vector<short>> playGame(short N) {
     std::vector<short> SG(N + 1, 0);
     for (short i = 2; i <= N; ++i) {
         std::unordered_set<short> mex;
@@ -28,12 +27,24 @@ int main() {
             }
     }
     if (SG[N] == 0)
-        printf("Mueller\n");
+        return std::nullopt;
     else {
-        printf("Schtirlitz\n");
+        std::vector<short> firstShot;
         for (short i = 1; i <= N; ++i)
             if ((SG[i - 1] ^ SG[N - i]) == 0)
-                printf("%hd\n", i);
+                firstShot.emplace_back(i);
+        return firstShot;
     }
+}
+
+int main() {
+    short N;
+    std::cin >> N;
+    if (auto firstShot = playGame(N)) {
+        std::cout << "Schtirlitz\n";
+        for (auto shot : firstShot.value())
+            std::cout << shot << ' ';
+    }
+    else std::cout << "Mueller\n";
     return 0;
 }

@@ -3,24 +3,25 @@
 #include <algorithm>
 
 struct Point {
-    int x{}, y{}, z{};
+    int x = 0, y = 0, z = 0;
 
-    Point() {
-        read();
-    }
-
-    void read() {
-        int _x, _y, _z;
-        scanf("%d%d%d", &_x, &_y, &_z);
-        x = _x, y = _y, z = _z;
-    }
+    Point() = default;
 };
+
+std::istream& operator>>(std::istream& stream, Point& A) {
+    stream >> A.x >> A.y >> A.z;
+    return stream;
+}
 
 struct Vector {
     int a, b, c;
 
     Vector() = default;
-    Vector(int _a, int _b, int _c) : a(_a), b(_b), c(_c) {};
+    Vector(int a, int b, int c) :
+    a(a),
+    b(b),
+    c(c)
+    {};
     Vector(const Point& start, const Point& end) {
         a = end.x - start.x;
         b = end.y - start.y;
@@ -82,23 +83,23 @@ double distanceBetweenLines(const Point& P1, const Point& P2, const Point& P3, c
     double t1 = (double)delta1 / deltaGeneral, t2 = (double)delta2 / deltaGeneral;
     double undersqrt = A * t1 * t1 + B * t1 * t2 + C * t2 * t2 + D + E * t1 + F * t2;
 
-    if (t1 == -1) {
+    if (delta1 == -deltaGeneral) {  // t1 == -1
         double t02 = (B - F) / (2.0 * C);
         t02 = std::max(t02, 0.0); t02 = std::min(t02, 1.0);
         undersqrt = std::min(undersqrt, A * t1 * t1 + B * t1 * t02 + C * t02 * t02 + D + E * t1 + F * t02);
     }
-    else if (t1 == 0) {
+    else if (delta1 == 0) {  // t1 == 0
         double t02 = -F / (2.0 * C);
         t02 = std::max(t02, 0.0); t02 = std::min(t02, 1.0);
         undersqrt = std::min(undersqrt, A * t1 * t1 + B * t1 * t02 + C * t02 * t02 + D + E * t1 + F * t02);
     }
 
-    if (t2 == 1) {
+    if (delta2 == deltaGeneral) {  // t2 == 1
         double t01 = -(B + E) / (2.0 * A);
         t01 = std::max(t01, -1.0); t01 = std::min(t01, 0.0);
         undersqrt = std::min(undersqrt, A * t01 * t01 + B * t01 * t2 + C * t2 * t2 + D + E * t01 + F * t2);
     }
-    else if (t2 == 0) {
+    else if (delta2 == 0) {  // t2 == 0
         double t01 = -E / (2.0 * A);
         t01 = std::max(t01, -1.0); t01 = std::min(t01, 0.0);
         undersqrt = std::min(undersqrt, A * t01 * t01 + B * t01 * t2 + C * t2 * t2 + D + E * t01 + F * t2);
@@ -109,6 +110,7 @@ double distanceBetweenLines(const Point& P1, const Point& P2, const Point& P3, c
 
 int main() {
     Point A, B, C, D;
-    printf("%0.6f", distanceBetweenLines(A, B, C, D));
+    std::cin >> A >> B >> C >> D;
+    std::cout << std::setprecision(6) << distanceBetweenLines(A, B, C, D);
     return 0;
 }

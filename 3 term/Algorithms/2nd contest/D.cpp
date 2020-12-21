@@ -70,19 +70,19 @@ public:
     }
 	
 	void add(const Point& newPoint) {
-		Vertices.push_back(newPoint);
+		Vertices_.push_back(newPoint);
 	}
 	
-	size_t vertices() const {
-		return Vertices.size();
+	size_t verticesSize() const {
+		return Vertices_.size();
 	}
 
 	size_t front() const {
-		return rightBottomPoint;
+		return rightBottomPoint_;
 	}
 
-	Point& radiusVector(size_t i) const {
-		return Vertices[i % Vertices.size()];
+	const Point& radiusVector(size_t i) const {
+		return Vertices_[i % Vertices_.size()];
 	}
 	
 	Point edgeVector(size_t i) const {
@@ -91,41 +91,47 @@ public:
 	
 	Polygon zeroReflex() const {
 		Polygon result;
-		for (size_t i = 0; i < Vertices.size(); ++i)
-			result.add(-radiusVector(i + leftTopPoint));
+		for (size_t i = 0; i < Vertices_.size(); ++i)
+			result.add(-radiusVector(i + leftTopPoint_));
 		return result;
 	}
 	
 	bool contains(const Point& A) const {
-		bool result = ((Vertices.front().y < A.y && Vertices.back().y >= A.y) || (Vertices.back().y < A.y && Vertices.front().y >= A.y)) &&
-                      (Vertices.front().x + (A.y - Vertices.front().y) / (Vertices.back().y - Vertices.front().y) * (Vertices.back().x - Vertices.front().x) <= A.x);
-        for (size_t i = 1; i < Vertices.size(); ++i)
-            if (((Vertices[i].y < A.y && Vertices[i - 1].y >= A.y) || (Vertices[i - 1].y < A.y && Vertices[i].y >= A.y)) &&
-                (Vertices[i].x + (A.y - Vertices[i].y) / (Vertices[i - 1].y - Vertices[i].y) * (Vertices[i - 1].x - Vertices[i].x) <= A.x))
+        for (size_t i = 0; i < Vertices_.size(); ++i)
+            if (betweenHeight(radiusVector(i), radiusVector(i + 1), A) && isLeftToSegment(radiusVector(i), radiusVector(i + 1), A))
                 result = !result;
         return result;
 	}
 	
 private:
-	std::vector<Point> Vertices;
+	std::vector<Point> Vertices_;
 
-	size_t leftTopPoint = 0, rightBottomPoint = 0;
+	size_t leftTopPoint_ = 0, rightBottomPoint_ = 0;
 	
     void read(size_t vertices) {
-        Vertices.resize(vertices);
+        Vertices_.resize(vertices);
         for (size_t i = 0; i < vertices; ++i) {
-            std::cin >> Vertices[i];
-			if (std::tie(Vertices[i].y, -Vertices[i].x) > std::tie(Vertices[leftTopPoint].y, -Vertices[leftTopPoint].x)) 
-				leftTopPoint = i;
-            if (std::tie(Vertices[i].y, -Vertices[i].x) < std::tie(Vertices[rightBottomPoint].y, -Vertices[rightBottomPoint].x))
-            	rightBottomPoint = i;
+            std::cin >> Vertices_[i];
+			if (std::tie(Vertices_[i].y, -Vertices_[i].x) > std::tie(Vertices_[leftTopPoint_].y, -Vertices_[leftTopPoint_].x)) 
+				leftTopPoint_ = i;
+            if (std::tie(Vertices_[i].y, -Vertices_[i].x) < std::tie(Vertices_[rightBottomPoint_].y, -Vertices_[rightBottomPoint_].x))
+            	rightBottomPoint_ = i;
 		}
+    }
+
+    bool betweenHeight(const Point& segmentStart, const Point& segmentEnd, const Point& A) {
+    	return (segmentStart.y < A.y && segmentEnd.y >= A.y) || (segmentEnd.y < A.y && segmentStart.y >= A.y);
+    }
+
+    bool isLeftToSegment(const Point& segmentStart, const Point& segmentEnd, const Point& A) {
+    	auto seg_dy = segmentEnd.y - segmentStart.y, seg_dx = segmentEnd.x - segmentStart.x;
+    	return (A.y - segmentStart.y) * seg_dx / seg_dy <= A.x - segmentStart.x;
     }
 };
 
 Polygon MinkoskiySum(const Polygon& P, const Polygon& Q) {
 	Polygon result;
-	for (size_t i = 0, j = 0; i < P.vertices() || j < Q.vertices();) {
+	for (size_t i = 0, j = 0; i < P.verticesSize() || j < Q.verticesSize();) {
 		result.add(P.radiusVector(i + P.front()) + Q.radiusVector(j + Q.front()));
 		auto rotation = crossProductZ(P.edgeVector(i + P.front()), Q.edgeVector(j + Q.front()));
 		if (rotation <= 0) ++i;

@@ -14,31 +14,31 @@
 #include <unordered_set>
 #include <optional>
 
-std::optional<std::vector<short>> playGame(short N) {
-    std::vector<short> SG(N + 1, 0);
-    for (short i = 2; i <= N; ++i) {
-        std::unordered_set<short> mex;
-        for (short j = 0; j <= (i - 1) / 2; ++j)
-            mex.emplace(SG[j] ^ SG[i - j - 1]);
-        for (short j = 0; j < i; ++j)
-            if (mex.find(j) == mex.end()) {
-                SG[i] = j;
+std::optional<std::vector<int>> playGame(int N) {
+    std::vector<int> SG(N + 1, 0);
+    for (int peopleInQueue = 2; peopleInQueue <= N; ++peopleInQueue) {
+        std::vector<bool> mex(N, false);
+        for (int j = 0; j <= (peopleInQueue - 1) / 2; ++j)
+            mex[SG[j] ^ SG[peopleInQueue - j - 1]] = true;
+        for (int j = 0; j < N; ++j)
+            if (!mex[j]) {
+                SG[peopleInQueue] = j;
                 break;
             }
     }
     if (SG[N] == 0)
         return std::nullopt;
     else {
-        std::vector<short> firstShot;
-        for (short i = 1; i <= N; ++i)
-            if ((SG[i - 1] ^ SG[N - i]) == 0)
-                firstShot.emplace_back(i);
+        std::vector<int> firstShot;
+        for (int personPosition = 1; personPosition <= N; ++personPosition)
+            if ((SG[personPosition - 1] ^ SG[N - personPosition]) == 0)
+                firstShot.emplace_back(personPosition);
         return firstShot;
     }
 }
 
 int main() {
-    short N;
+    int N;
     std::cin >> N;
     if (auto firstShot = playGame(N)) {
         std::cout << "Schtirlitz\n";

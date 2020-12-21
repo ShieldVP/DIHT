@@ -1,9 +1,10 @@
-#include <cstdio>
+#include <iostream>
 #include <vector>
 #include <complex>
 #include <cmath>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string>
 
 typedef std::complex<double> Number;
 
@@ -33,100 +34,109 @@ void FFT(std::vector<Number>& polynomial, bool forward = true) {
     }
 }
 
-struct WAVHEADER {
-    char chunkId[4];
-    unsigned int chunkSize;
-    char format[4];
-    char subchunk1Id[4];
-    unsigned int subchunk1Size;
-    unsigned short audioFormat;
-    unsigned short numChannels;
-    unsigned int sampleRate;
-    unsigned int byteRate;
-    unsigned short blockAlign;
-    unsigned short bitsPerSample;
-    char subchunk2Id[4];
-    unsigned int subchunk2Size;
+class WAVFILE {
+public:
+    WAVFILE(FILE* file) {
+        // Getting header of audio file
+        fread(&header, sizeof(WAVHEADER), 1, file);
+
+        // Getting main data of audio file
+        rawData = new unsigned char[header.subchunk2Size];
+        fread(rawData, header.subchunk2Size, 1, file);
+        fclose(file);
+    }
+
+    ~WAVFILE() {
+        delete[] rawData;
+    }
+
+    void compress(int compressionCoefficient) {
+        // Main part of program, compressing
+        std::vector<Number> data;
+        getReadyToFFT(data);
+        FFT(data);
+        size_t mainPartLen = (100 - compressionCoefficient) * dataSize / 100;
+        for (size_t i = mainPartLen; i < data.size(); ++i)
+            data[i] = 0;
+        FFT(data, false);
+
+        // Converting back to bigEndian
+        for (size_t i = 0; i < numSamples; ++i) {
+            size_t num = data[i].real();
+            for (unsigned short j = 0; j < header.blockAlign; ++j) {
+                rawData[i * header.blockAlign + j] = num % 256;
+                num >>= 8u;
+            }
+        }
+    }
+
+    void writeAudiofile(int fd) {
+        // Writing all the data in fileOut
+        int written = 0, currentlyWrote;
+        while ((currentlyWrote = write(fd, &header + written, sizeof(WAVHEADER) - written)) > 0)
+            written += currentlyWrote;
+        written = 0;
+        while ((currentlyWrote = write(fd, rawData + written, header.subchunk2Size - written)) > 0)
+            written += currentlyWrote;
+
+        close(fd);
+    }
+
+private:
+    struct WAVHEADER {
+        char chunkId[4];
+        unsigned int chunkSize;
+        char format[4];
+        char subchunk1Id[4];
+        unsigned int subchunk1Size;
+        unsigned short audioFormat;
+        unsigned short numChannels;
+        unsigned int sampleRate;
+        unsigned int byteRate;
+        unsigned short blockAlign;
+        unsigned short bitsPerSample;
+        char subchunk2Id[4];
+        unsigned int subchunk2Size;
+    };
+
+    WAVHEADER header;
+    unsigned char* rawData;
+    size_t numSamples, dataSize;
+
+    void getReadyToFFT(std::vector<Number>& data) {
+        // dataSize is the next power 2 after numSamples (needed to FFT)
+        numSamples = header.subchunk2Size / header.blockAlign;
+        dataSize   = 1;
+        while (dataSize < numSamples) dataSize <<= 1u;
+
+        // Converting blocks of header.blockAlign of bytes into size_t
+        data.resize(dataSize, 0);
+        for (size_t i = 0; i < numSamples; ++i) {
+            size_t num = 0, pow = 1;
+            for (unsigned short j = 0; j < header.blockAlign; ++j) {
+                num += pow * rawData[i * header.blockAlign + j];
+                pow <<= 8u;
+            }
+            data[i] = num;
+        }
+    }
 };
 
 int main() {
     // Interacting with user
-    auto audioPATH = new char[4096], resultPATH = new char[4096];  // PATH_MAX = 4096
-    printf("Please enter absolute path to the audio file:\n");
-    scanf("%s", audioPATH);
-    printf("Please enter absolute path to the result file:\n");
-    scanf("%s", resultPATH);
+    std::string audioPATH, resultPATH;
+    std::cout << "Please enter absolute path to the audio file:\n";
+    std::cin >> audioPATH;
+    std::cout << "Please enter absolute path to the result file:\n";
+    std::cin >> resultPATH;
     int compressionCoefficient;
-    printf("Please enter compression coefficient in percents:\n");
-    scanf("%d", &compressionCoefficient);
+    std::cout << "Please enter compression coefficient in percents:\n";
+    std::cin >> compressionCoefficient;
 
-    // Opening the audio file
-    auto fileIn = fopen(audioPATH, "r");
-    delete[] audioPATH;
-    if (!fileIn) {
-        printf("ERROR 0: Failed to open file.\n");
-        return 0;
-    }
+    WAVFILE file(fopen(audioPATH.c_str(), "r"));
+    file.compress(compressionCoefficient);
+    file.writeAudiofile(open(resultPATH.c_str(), O_WRONLY | O_CREAT, 0640));
 
-    // Getting header of audio file
-    WAVHEADER header{};
-    fread(&header, sizeof(WAVHEADER), 1, fileIn);
-
-    // Getting main data of audio file
-    auto rawData = new unsigned char[header.subchunk2Size];
-    fread(rawData, header.subchunk2Size, 1, fileIn);
-    fclose(fileIn);
-
-    // dataSize is the next power 2 after numSamples (needed to FFT)
-    size_t numSamples = header.subchunk2Size / header.blockAlign,
-           dataSize   = 1;
-    while (dataSize < numSamples) dataSize <<= 1u;
-
-    // Converting blocks of header.blockAlign of bytes into size_t
-    std::vector<Number> data(dataSize, 0);
-    for (size_t i = 0; i < numSamples; ++i) {
-        size_t num = 0, pow = 1;
-        for (unsigned short j = 0; j < header.blockAlign; ++j) {
-            num += pow * rawData[i * header.blockAlign + j];
-            pow <<= 8u;
-        }
-        data[i] = num;
-    }
-    delete[] rawData;
-
-    // Main part of program, compressing
-    FFT(data);
-    size_t mainPartLen = (100 - compressionCoefficient) * dataSize / 100;
-    for (size_t i = mainPartLen; i < data.size(); ++i)
-        data[i] = 0;
-    FFT(data, false);
-
-    // Converting back to bigEndian
-    auto resultData = new unsigned char[header.subchunk2Size];
-    for (size_t i = 0; i < data.size(); ++i) {
-        size_t num = data[i].real();
-        for (unsigned short j = 0; j < header.blockAlign; ++j) {
-            resultData[i * header.blockAlign + j] = num % 256;
-            num >>= 8u;
-        }
-    }
-
-    // Opening of resulting file
-    int fileOut = open(resultPATH, O_WRONLY | O_CREAT, 0640);
-    if(fileOut == -1) {
-        printf("ERROR 4: Cannot create or open resulting file.");
-        return 0;
-    }
-
-    // Writing all the data in fileOut
-    int written = 0, currentlyWrote;
-    while ((currentlyWrote = write(fileOut, &header + written, sizeof(WAVHEADER) - written)) > 0)
-        written += currentlyWrote;
-    written = 0;
-    while ((currentlyWrote = write(fileOut, resultData + written, header.subchunk2Size - written)) > 0)
-        written += currentlyWrote;
-
-    close(fileOut);
     printf("File successfully compressed.\n");
     return 0;
 }

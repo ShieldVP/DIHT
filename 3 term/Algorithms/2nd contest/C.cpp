@@ -40,7 +40,6 @@ std::istream& operator>>(std::istream& stream, Point& A) {
 
 struct Vector {
     long long x = 0, y = 0, z = 0;
-    double norma = -1;
 
     Vector() = default;
     Vector(long long x, long long y, long long z) : 
@@ -58,6 +57,9 @@ struct Vector {
         if (norma >= 0) return norma;
         return norma = std::sqrt(x * x + y * y + z * z);
     }
+
+private:
+    double norma = -1;
 };
 
 static Vector crossProduct(const Vector& A, const Vector& B) {
@@ -120,83 +122,89 @@ class PointsSet {
 public:
     PointsSet(std::vector<Point>  arr) : array(std::move(arr)) {}
 
-    void computeConvexHull() {
-        std::stack<Edge> edges;
-        std::map<Edge, size_t> used;
-        edges.emplace(getFirstEdge());
-        while (!edges.empty()) {
-            auto edge = edges.top();
-            edges.pop();
-            if (++used[edge] > 2) continue;
+    void computeConvexHull();
 
-            size_t newPoint = 0;
-            while (edge.flatContains(array[newPoint])) ++newPoint;
-
-            auto newNormal = crossProduct(Vector(array[newPoint], edge.A), Vector(array[newPoint], edge.B));
-            auto rightSign = relativeSignFlat(newNormal, array[newPoint], edge.C);
-
-            for (size_t point = newPoint + 1; point < array.size(); ++point) {
-                if (edge.flatContains(array[point])) continue;
-                if (relativeSignFlat(newNormal, edge.A, array[point]) != rightSign) {
-                    newPoint = point;
-                    newNormal = crossProduct(Vector(array[newPoint], edge.A), Vector(array[newPoint], edge.B));
-                    rightSign = relativeSignFlat(newNormal, array[newPoint], edge.C);
-                }
-            }
-
-            hull.emplace_back(edge.A, edge.B, array[newPoint], newNormal);
-            edges.emplace(edge.A, array[newPoint], edge.B);
-            ++used[edges.top()];
-            edges.emplace(edge.B, array[newPoint], edge.A);
-            ++used[edges.top()];
-        }
-    }
-
-    double distanceToHull(const Point& point) {
-        auto minDist = std::numeric_limits<double>::infinity();
-        for (auto& face : hull)
-            minDist = std::min(flatDistance(face, point), minDist);
-        return minDist;
-    }
+    double distanceToHull(const Point& point);
 
 private:
     std::vector<Point> array;
     std::vector<Face> hull;
 
-    Edge getFirstEdge() const {
-        auto firstPoint = array.front(), secondPoint = firstPoint;
-        for (auto& point : array)
-            if (point < firstPoint)
-                firstPoint = point;
-        auto minTan = std::numeric_limits<double>::infinity();
-        for (auto& point : array) {
-            if (point.x == firstPoint.x && point.y == firstPoint.y) continue;
-            auto h = point.z - firstPoint.z;
-            auto l = std::sqrt(pow(point.x - firstPoint.x, 2) + pow(point.y - firstPoint.y, 2));
-            auto newTan = h / l;
-            if (newTan < minTan) {
-                secondPoint = point;
-                minTan = newTan;
-            }
-        }
-        size_t j = 0;
-        while (array[j] == firstPoint || array[j] == secondPoint) ++j;
-        auto thirdPoint = array[j++];
-        while (array[j] == firstPoint || array[j] == secondPoint) ++j;
-        auto basePoint = array[j];
-        auto firstNormal = crossProduct(Vector(thirdPoint, firstPoint), Vector(thirdPoint, secondPoint));
-        auto firstSign = relativeSignFlat(firstNormal, firstPoint, basePoint);
-        for (size_t point = j + 1; point < array.size(); ++point) {
-            if (array[point] == firstPoint || array[point] == secondPoint) continue;
-            if (relativeSignFlat(firstNormal, firstPoint, array[point]) != firstSign) {
-                thirdPoint = array[point];
-                firstNormal = crossProduct(Vector(thirdPoint, firstPoint), Vector(thirdPoint, secondPoint));
-                firstSign = relativeSignFlat(firstNormal, firstPoint, basePoint);
-            }
-        }
-        return Edge(firstPoint, secondPoint, thirdPoint);
-    }
+    Edge getFirstEdge() const;
 };
+
+void PointsSet::computeConvexHull() {
+    std::stack<Edge> edges;
+    std::map<Edge, size_t> used;
+    edges.emplace(getFirstEdge());
+    while (!edges.empty()) {
+        auto edge = edges.top();
+        edges.pop();
+        if (++used[edge] > 2) continue;
+
+        size_t newPoint = 0;
+        while (edge.flatContains(array[newPoint])) ++newPoint;
+
+        auto newNormal = crossProduct(Vector(array[newPoint], edge.A), Vector(array[newPoint], edge.B));
+        auto rightSign = relativeSignFlat(newNormal, array[newPoint], edge.C);
+
+        for (size_t point = newPoint + 1; point < array.size(); ++point) {
+            if (edge.flatContains(array[point])) continue;
+            if (relativeSignFlat(newNormal, edge.A, array[point]) != rightSign) {
+                newPoint = point;
+                newNormal = crossProduct(Vector(array[newPoint], edge.A), Vector(array[newPoint], edge.B));
+                rightSign = relativeSignFlat(newNormal, array[newPoint], edge.C);
+            }
+        }
+
+        hull.emplace_back(edge.A, edge.B, array[newPoint], newNormal);
+        edges.emplace(edge.A, array[newPoint], edge.B);
+        ++used[edges.top()];
+        edges.emplace(edge.B, array[newPoint], edge.A);
+        ++used[edges.top()];
+    }
+}
+
+Edge PointsSet::getFirstEdge() const {
+    auto firstPoint = array.front(), secondPoint = firstPoint;
+    for (auto& point : array)
+        if (point < firstPoint)
+            firstPoint = point;
+    auto minTan = std::numeric_limits<double>::infinity();
+    for (auto& point : array) {
+        if (point.x == firstPoint.x && point.y == firstPoint.y) continue;
+        auto h = point.z - firstPoint.z;
+        auto l = std::sqrt(pow(point.x - firstPoint.x, 2) + pow(point.y - firstPoint.y, 2));
+        auto newTan = h / l;
+        if (newTan < minTan) {
+            secondPoint = point;
+            minTan = newTan;
+        }
+    }
+    size_t j = 0;
+    while (array[j] == firstPoint || array[j] == secondPoint) ++j;
+    auto thirdPoint = array[j++];
+    while (array[j] == firstPoint || array[j] == secondPoint) ++j;
+    auto basePoint = array[j];
+    auto firstNormal = crossProduct(Vector(thirdPoint, firstPoint), Vector(thirdPoint, secondPoint));
+    auto firstSign = relativeSignFlat(firstNormal, firstPoint, basePoint);
+    for (size_t point = j + 1; point < array.size(); ++point) {
+        if (array[point] == firstPoint || array[point] == secondPoint) continue;
+        if (relativeSignFlat(firstNormal, firstPoint, array[point]) != firstSign) {
+            thirdPoint = array[point];
+            firstNormal = crossProduct(Vector(thirdPoint, firstPoint), Vector(thirdPoint, secondPoint));
+            firstSign = relativeSignFlat(firstNormal, firstPoint, basePoint);
+        }
+    }
+    return Edge(firstPoint, secondPoint, thirdPoint);
+}
+
+double PointsSet::distanceToHull(const Point& point) {
+    auto minDist = std::numeric_limits<double>::infinity();
+    for (auto& face : hull)
+        minDist = std::min(flatDistance(face, point), minDist);
+    return minDist;
+}
 
 int main() {
     size_t N, M;
